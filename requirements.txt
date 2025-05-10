@@ -1,0 +1,5 @@
+# SQL server
+pyodbc==5.2.0
+
+# API
+requests==2.32.3
