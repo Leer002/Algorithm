@@ -1,6 +1,8 @@
 import requests
 import pyodbc
 import json
+import time
+import uuid
 from datetime import datetime
 
 class Trade:
@@ -16,62 +18,130 @@ class Trade:
 
     def create_table(self):
         self.cursor.execute('''
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='trades')
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='trades' AND xtype='U')
         CREATE TABLE trades (
             id INT IDENTITY(1,1) PRIMARY KEY,
-            stock_symbol NVARCHAR(10) NOT NULL,
-            user NVARCHAR(10) NOT NULL,
+            trade_id NVARCHAR(128) NOT NULL,
+            label NVARCHAR NOT(17) NULL,
+            symbol NVARCHAR(10) NOT NULL,
             trade_type NVARCHAR(4) NOT NULL,
             quantity INT NOT NULL,
-            price FLOAT NOT NULL,
-            timestamp DATETIME DEFAULT GETDATE()
+            amount FLOAT NOT NULL,
+            start DATETIME DEFAULT GETDATE(),
+            end DATETIME DEFAULT GETDATE()
         )
         ''')
         self.connect.commit()
-
-    def buy(self, user, symbol, quantity, price_range):
-        response = requests.get(f"{self.base_url}/buy/{symbol}/price", headers={"Authorization": f"Bearer{self.api_key}"})
-        if response.status_code == 200:
-            price = response.json()["price"]
-            if price_range[0] <= price <= price_range[1]:
-                buy = requests.post(f"{self.api_key}/...", data={"sybmol":symbol, "quantity":quantity}, headers={'Authorization': f'Bearer {self.api_key}'})
-                if buy.status_code == 200:
-                    print(f'خرید {symbol} انجام شد')
-                    self.save(user, symbol, 'buy', quantity, price)
-                else:
-                    print('خطا:', buy.text)
-            else:
-                print(f'قیمت  خارج از بازه‌ی تعیین‌شده ')
-        else:
-            print('خطا در دریافت قیمت:', response.text)
     
-    def sell(self, user, symbol, quantity, price_range):
-        response = requests.get(f"{self.base_url}/sell/{symbol}/price", headers={'Authorization': f'Bearer {self.api_key}'})
+    def get_price(self, action, symbol):
+        for _ in range(2):
+            response = requests.get(f"{self.base_url}/{action}/{symbol}/price", headers={"Authorization": f"Bearer {self.api_key}"})
+            if response.status_code == 200:
+                return response.json().get("price")
+            time.sleep(2)
+        print(f"خطا در دریافت قیمت {symbol}")
+        return None
+
+    def execute_trade(self, action, start, end, symbol, quantity, min_price, max_price, amount, min_stock, max_stock):
+        price = self.get_price(action, symbol)
+        if price is None or not (min_price <= price <= max_price):
+            print(f"قیمت خارج از بازه است")
+            return False
+
+        trade_data = {
+            "symbol": symbol,
+            "quantity": quantity,
+            "min_price": min_price,
+            "max_price": max_price,
+            "amount": amount,
+            "min_stock": min_stock,
+            "max_stock": max_stock,
+            "start": start.strftime("%Y-%m-%d %H:%M:%S"),
+            "end": end.strftime("%Y-%m-%d %H:%M:%S"),
+        }
         
+        response = requests.post(f"{self.base_url}/{action}", data=trade_data, headers={"Authorization": f"Bearer {self.api_key}"})
+        if response.status_code == 200:
+            print("سفارش انجام شد")
+            trade_id = str(uuid.uuid4())
+            now = datetime.now().time()
+            if time(9, 0, 0) <= now or now <= time(8, 45, 0):
+                label = "non-algorithmic"
+            else:
+                label = "algorithmic"
+            self.save_trade(trade_id, label, symbol, action, quantity, amount)
+        else:
+            print(f"خطا در {action}: {response.text}")
+            return False
+        return True
+
+
+    def buy(self, *args):
+        return self.execute_trade("buy", *args)
+
+    def sell(self, *args):
+        return self.execute_trade("sell", *args)
+
+    def update(self, id):
+        response = requests.get(f"{self.base_url}/update/{id}", headers={"Authorization": f"Bearer {self.api_key}"})
         if response.status_code == 200:
             price = response.json()['price']
-            if price_range[0] <= price <= price_range[1]:
-                sell = requests.post(f"{self.api_url}/sell", data={
-                    'symbol': symbol,
-                    'quantity': quantity,
-                    'price': price
-                }, headers={'Authorization': f'Bearer {self.api_key}'})
+            trade_id = response.json()["trade_id"]
 
-                if sell.status_code == 200:
+            symbol = input("نماد سهام: ")
+            quantity = int(input("تعداد سهام: "))
+            min_stock, max_stock = list(map(int, input("به این فرم حداقل و حداکثر سهم را وارد کنید(1000 2000)").split()))
+            amount = float(input("مبلغ"))
+            min_price, max_price = list(map(int, input("به این فرم حداقل و حداکثر قیمت را وارد کنید(100000 200000)").split()))
+
+            if min_price <= price <= max_price:
+                data = {
+                    "symbol":symbol,
+                    "quantity":quantity,
+                    "min_price":min_price,
+                    "max_price":max_price,
+                    "amount":amount,
+                    "min_stock":min_stock,
+                    "max_stock":max_stock
+                }
+                update = requests.put(f"{self.base_url}/update/{id}/{trade_id}", data=data, headers={'Authorization': f'Bearer {self.api_key}'})
+
+                if update.status_code == 200:
                     print(f'خرید {symbol} انجام شد')
-                    self.save(user, symbol, 'sell', quantity, price)
+                    trade_id = str(uuid.uuid4())
+                    now = datetime.now().time()
+                    if time(9, 0, 0) <= now or now <= time(8, 45, 0):
+                        label = "non-algorithmic"
+                    else:
+                        label = "algorithmic"
+                    self.save_trade(trade_id, label, symbol, 'update', quantity, amount)
                 else:
-                    print('خطا:', sell.text)
+                    print('خطا:', update.text)
+                    time.sleep(3)
+                    return False
             else:
-                print(f'قیمت  خارج از بازه  ')
+                print(f' قیمت  خارج از بازه است  ')
+                return False
         else:
             print('خطا در دریافت قیمت:', response.text)
+            return False
+        return True
+
+    def delete(self, id):
+        response = requests.delete(f"{self.base_url}/delete/{id}", headers={"Authorization": f"Bearer {self.api_key}"})
+        if response.status_code == 200:
+            print("حذف با موفقیت انجام شد.")
+        else:
+            print(f"خطا در حذف سفارش: {response.text}")
+            return False
+        return True
+            
     
-    def save_trade(self, user, symbol, type, quantity, price):
+    def save_trade(self, trade_id, label, symbol, action, quantity, amount):
         self.cursor.execute('''
-        INSERT INTO trades (user, symbol, type, quantity, price)
-        VALUES (?, ?, ?, ?)
-        ''', (user, symbol, type, quantity, price))
+        INSERT INTO trades (trade_id, label, symbol, action, quantity, amount)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''', (trade_id, label, symbol, action, quantity, amount))
         self.connect.commit()
 
     def close(self):
@@ -79,45 +149,43 @@ class Trade:
 
 obj = Trade()
 
-while True:
-    inp = input("خرید: b / فروش: s / لغو: c): ").lower()
 
-    if inp in ['b', 's']:
-        symbol = input("نماد سهام: ")
-        quantity = int(input("تعداد سهام: "))
-        
-        
-        min_price = float(input("حداقل قیمت : "))
-        max_price = float(input("حداکثر قیمت: "))
-        price_range = (min_price, max_price)
+if datetime.now().strftime("%A") not in ("Thursday", "Friday"):
+    if datetime.now().strftime(f"%X") >= "08:45:00":
+        while True:
+            inp = input("خرید: b / فروش: s / به روزرسانی: u / حذف: d / لغو: c: ").lower()
 
-        
-        start = input(" شروع (YYYY-MM-DD): ")
-        end = input(" پایان (YYYY-MM-DD): ")
+            if inp in ['b', 's']:
+                symbol = input("نماد سهام: ")
+                quantity = int(input("تعداد سهام: "))
+                min_stock, max_stock = map(int, input("حداقل و حداکثر سهم (مثال: 1000 2000): ").split())
+                amount = float(input("مبلغ: "))
+                min_price, max_price = map(float, input("حداقل و حداکثر قیمت (مثال: 100000 200000): ").split())
+                start = datetime.strptime(input("شروع (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
+                end = datetime.strptime(input("پایان (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
 
-        
-        try:
-            start = datetime.strptime(start, '%Y-%m-%d')
-            end = datetime.strptime(end, '%Y-%m-%d')
-            
-            if start > end:
-                print("تاریخ شروع نمی‌ تواند بعد از پایان باشد")
-                continue
-            
-            if inp == 'b':
-                obj.buy(symbol, quantity, price_range)
-            
-            elif inp == 's':
-                obj.sell(symbol, quantity, price_range)
+                while True:
+                    start = datetime.strptime(input("تاریخ شروع (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
+                    end = datetime.strptime(input("تاریخ پایان (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
 
-        except ValueError:
-            print("فرمت تاریخ نامعتبر است")
+                    if start > end:
+                        print("تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد")
+                    else:
+                        break
 
-    elif inp == 'c':
-        print("لغو شد")
-        break
+                success = obj.buy(start, end, symbol, quantity, min_price, max_price, amount, min_stock, max_stock) if inp == 'b' else obj.sell(start, end, symbol, quantity, min_price, max_price, amount, min_stock, max_stock)
 
+            elif inp == 'u':
+                success = obj.update(int(input("آیدی سفارش را وارد کنید: ")))
+
+            elif inp == 'd':
+                success = obj.delete(int(input("آیدی سفارش را وارد کنید: ")))
+
+            elif inp == 'c':
+                print("لغو شد")
+                break
     else:
-        print("انتخاب نامعتبر است")
+        obj.close()
+else:
+    print("بازار تعطیل است")
 
-obj.close()
