@@ -22,6 +22,7 @@ class Trade:
         CREATE TABLE trades (
             id INT IDENTITY(1,1) PRIMARY KEY,
             trade_id NVARCHAR(128) NOT NULL,
+            action NVARCHAR(10) NOT NULL,
             label NVARCHAR NOT(17) NULL,
             symbol NVARCHAR(10) NOT NULL,
             trade_type NVARCHAR(4) NOT NULL,
@@ -161,8 +162,6 @@ if datetime.now().strftime("%A") not in ("Thursday", "Friday"):
                 min_stock, max_stock = map(int, input("حداقل و حداکثر سهم (مثال: 1000 2000): ").split())
                 amount = float(input("مبلغ: "))
                 min_price, max_price = map(float, input("حداقل و حداکثر قیمت (مثال: 100000 200000): ").split())
-                start = datetime.strptime(input("شروع (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
-                end = datetime.strptime(input("پایان (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
 
                 while True:
                     start = datetime.strptime(input("تاریخ شروع (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
