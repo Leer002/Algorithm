@@ -102,7 +102,7 @@ class Trade:
             print(f" سفارش {action} برای {symbol} با موفقیت انجام شد.")
             trade_id = str(uuid.uuid4())
             now = datetime.now().time()
-            label = "non-algorithmic" if dtime(8, 45) <= now <= dtime(9, 0) else "algorithmic"
+            label = "algorithmic" if dtime(8, 45) <= now <= dtime(9, 0) else "non-algorithmic"
             self.save_trade(action, market, securities_type, start, end, symbol, quantity, amount, trade_id, label)
             return True
         else:
@@ -152,10 +152,7 @@ class Trade:
                     print(f'خرید {symbol} انجام شد')
                     trade_id = str(uuid.uuid4())
                     now = datetime.now().time()
-                    if dtime(8, 45, 0) <= now <= dtime(9, 0, 0):
-                        label = "non-algorithmic"
-                    else:
-                        label = "algorithmic"
+                    label = "algorithmic" if dtime(8, 45) <= now <= dtime(9, 0) else "non-algorithmic"
                     self.save_trade("update", market, securities_type, start, end, symbol, quantity, amount, trade_id, label)
                     return True
                 logging.error("خطا در درخواست")
