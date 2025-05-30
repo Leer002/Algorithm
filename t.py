@@ -123,9 +123,9 @@ class Trade:
 
             symbol = input("نماد سهام: ")
             quantity = int(input("تعداد سهام: "))
-            min_stock, max_stock = list(map(int, input("به این فرم حداقل و حداکثر سهم را وارد کنید(1000 2000)").split()))
+            min_stock, max_stock = map(int, input("به این فرم حداقل و حداکثر سهم را وارد کنید(1000 2000)").split())
             amount = float(input("مبلغ"))
-            min_price, max_price = list(map(int, input("به این فرم حداقل و حداکثر قیمت را وارد کنید(100000 200000)").split()))
+            min_price, max_price = map(int, input("به این فرم حداقل و حداکثر قیمت را وارد کنید(100000 200000)").split())
             securities_type = input("نوع اوراق بهادار:")
             market = input("بازار:")
             start = datetime.strptime(input("تاریخ شروع (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
