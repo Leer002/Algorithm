@@ -220,9 +220,9 @@ if is_market_open():
                     try:
                         symbol = input("نماد سهام: ").strip()
                         quantity = int(input("تعداد سهام: "))
-                        min_stock, max_stock = map(int, input("حداقل و حداکثر سهم (مثال: 1000 2000): ").split())
+                        min_stock, max_stock = map(int, input("حداقل و حداکثر سهم (مثال: 2000 1000): ").split())
                         amount = float(input("مبلغ: "))
-                        min_price, max_price = map(float, input("حداقل و حداکثر قیمت (مثال: 100000 200000): ").split())
+                        min_price, max_price = map(float, input("حداقل و حداکثر قیمت (مثال: 200000 100000): ").split())
                         securities_type = input("نوع اوراق بهادار:").strip()
                         market = input("بازار:").strip()
 
@@ -266,7 +266,7 @@ if is_market_open():
 
             elif inp == 'u':
                 try:
-                    success = obj.delete(int(input("آیدی سفارش را وارد کنید: ")))
+                    success = obj.update(int(input("آیدی سفارش را وارد کنید: ")))
                 except ValueError:
                     logging.error("لطفاً یک عدد صحیح وارد کنید")
         
