@@ -92,8 +92,8 @@ class Trade:
             "amount": amount,
             "min_stock": min_stock,
             "max_stock": max_stock,
-            "start": start.strftime("%Y-%m-%d %H:%M:%S"),
-            "end": end.strftime("%Y-%m-%d %H:%M:%S"),
+            "start": start,
+            "end": end,
         }
         
         url = f"{self.base_url}/{action}"
@@ -128,8 +128,8 @@ class Trade:
             min_price, max_price = list(map(int, input("به این فرم حداقل و حداکثر قیمت را وارد کنید(100000 200000)").split()))
             securities_type = input("نوع اوراق بهادار:")
             market = input("بازار:")
-            start_date = input("تاریخ شروع (YYYY-MM-DD HH:MM:SS): ")
-            end_date = input("تاریخ پایان (YYYY-MM-DD HH:MM:SS): ")
+            start = datetime.strptime(input("تاریخ شروع (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
+            end = datetime.strptime(input("تاریخ پایان (YYYY-MM-DD HH:MM:SS): "), "%Y-%m-%d %H:%M:%S")
 
             if min_price <= price <= max_price:
                 data = {
@@ -142,8 +142,8 @@ class Trade:
                     "max_stock":max_stock,
                     "securities_type": securities_type,
                     "market":market,
-                    "start_date": start.strftime("%Y-%m-%d %H:%M:%S"),
-                    "end_date": end.strftime("%Y-%m-%d %H:%M:%S")
+                    "start_date": start,
+                    "end_date": end
                 }
                 url = f"{self.base_url}/update/{id}"
                 update = retry(url, headers={'Authorization': f'Bearer {self.api_key}'}, method="put", data=data)
