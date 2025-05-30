@@ -130,8 +130,6 @@ class Trade:
             market = input("بازار:")
             start_date = input("تاریخ شروع (YYYY-MM-DD HH:MM:SS): ")
             end_date = input("تاریخ پایان (YYYY-MM-DD HH:MM:SS): ")
-            start = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
-            end = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
 
             if min_price <= price <= max_price:
                 data = {
@@ -143,7 +141,9 @@ class Trade:
                     "min_stock":min_stock,
                     "max_stock":max_stock,
                     "securities_type": securities_type,
-                    "market":market
+                    "market":market,
+                    "start_date": start.strftime("%Y-%m-%d %H:%M:%S"),
+                    "end_date": end.strftime("%Y-%m-%d %H:%M:%S")
                 }
                 url = f"{self.base_url}/update/{id}"
                 update = retry(url, headers={'Authorization': f'Bearer {self.api_key}'}, method="put", data=data)
